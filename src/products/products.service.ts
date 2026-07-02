@@ -4,17 +4,36 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaService } from 'src/prisma.service';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { RpcException } from '@nestjs/microservices';
+import { Prisma } from 'generated/prisma/client';
 
 @Injectable()
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createProductDto: CreateProductDto) {
-    const product = await this.prisma.product.create({
-      data: createProductDto,
-    });
+  private handleUniqueConstraintError(error: unknown, name?: string): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new RpcException({
+        status: HttpStatus.CONFLICT,
+        message: `Product with name '${name}' already exists`,
+      });
+    }
 
-    return product;
+    throw error;
+  }
+
+  async create(createProductDto: CreateProductDto) {
+    try {
+      const product = await this.prisma.product.create({
+        data: createProductDto,
+      });
+
+      return product;
+    } catch (error) {
+      this.handleUniqueConstraintError(error, createProductDto.name);
+    }
   }
 
   async findAll(paginationDto: PaginationDto) {
@@ -60,12 +79,16 @@ export class ProductsService {
     const { id, ...toUpdate } = updateProductDto;
     await this.findOne(id);
 
-    const product = await this.prisma.product.update({
-      where: { id },
-      data: toUpdate,
-    });
+    try {
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: toUpdate,
+      });
 
-    return product;
+      return product;
+    } catch (error) {
+      this.handleUniqueConstraintError(error, toUpdate.name);
+    }
   }
 
   async remove(id: number) {
