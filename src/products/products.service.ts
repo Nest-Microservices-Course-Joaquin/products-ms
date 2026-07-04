@@ -103,10 +103,10 @@ export class ProductsService {
   }
 
   async validateProducts(ids: number[]) {
-    ids = Array.from(new Set(ids));
+    const uniqueIds = Array.from(new Set(ids));
 
     const products = await this.prisma.product.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: uniqueIds } },
     });
 
     if (products.length !== ids.length) {
