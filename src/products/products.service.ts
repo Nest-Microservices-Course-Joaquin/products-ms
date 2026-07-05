@@ -109,7 +109,7 @@ export class ProductsService {
       where: { id: { in: uniqueIds } },
     });
 
-    if (products.length !== ids.length) {
+    if (products.length !== uniqueIds.length) {
       throw new RpcException({
         status: HttpStatus.BAD_REQUEST,
         message: `Some products were not found`,
